@@ -9,7 +9,7 @@
   *, *::before, *::after { box-sizing: border-box; }
   :root { color-scheme: light dark; }
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; }
-  main { max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
+  main, footer { max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
   h1 { font-size: 1.4rem; }
   #sets { width: 100%; padding: .5rem; font: 14px/1.5 monospace; margin-bottom: 1.5rem;
     field-sizing: content; min-height: 5lh; max-height: 60vh; }
@@ -52,6 +52,9 @@
   (e.g. <code>localhost:8080, dev.example.com, example.com</code>).
   Clicking the bookmarklet on a URL matching a domain in a set jumps to the next one in that set, keeping the path/query/hash.
   Entries without a scheme default to <code>http://</code> for localhost/127.0.0.1 and <code>https://</code> for everything else; write the scheme explicitly to override.
+  A leading <code>*.</code> matches any subdomain and carries it across, so
+  <code>*.example.com, *.localhost:8080</code> sends <code>dev.example.com</code> to <code>dev.localhost:8080</code>.
+  Exact entries always win over wildcards.
 </p>
 
 <label for="sets" class="sr-only">Domain sets, one per line</label>
@@ -64,6 +67,12 @@
 <textarea id="code" rows="2" readonly></textarea>
 
 </main>
+
+<footer>
+  <p class="hint">
+    Prior art at: <a href="https://github.com/jmhobbs/domain-swap"><code>jmhobbs/domain-swap</code></a>.
+  </p>
+</footer>
 
 <script>
 const STORAGE_KEY = "urlswapSets";
@@ -95,7 +104,7 @@ function buildBookmarklet(sets) {
       var m=/^([a-z][a-z0-9+.-]*:)\\/\\/(.*)$/i.exec(e);
       var host=(m?m[2]:e).toLowerCase();
       var local=/^(localhost|127\\.0\\.0\\.1|\\[::1\\])(:|$)/.test(host)||/(^|\\.)localhost(:|$)/.test(host);
-      return {proto:m?m[1]:(local?"http:":"https:"),host:host};
+      return {proto:m?m[1]:(local?"http:":"https:"),host:host,wild:host.indexOf("*.")===0};
     }
     function real(u){return /^https?:\\/\\//i.test(u||"");}
     var url=null,skip=0;
@@ -114,18 +123,42 @@ function buildBookmarklet(sets) {
     }
     var a=document.createElement("a");a.href=url;
     var cur=a.host.toLowerCase();
-    for(var i=0;i<sets.length;i++){
-      var norm=sets[i].map(parse);
-      var idx=-1;
-      for(var j=0;j<norm.length;j++){if(norm[j].host===cur){idx=j;break;}}
-      if(idx>-1){
-        var next=norm[(idx+1+skip)%norm.length];
-        var target=next.proto+"//"+next.host+a.pathname+a.search+a.hash;
-        if(target===location.href){location.reload();}else{location.href=target;}
-        return;
+    function find(wild){
+      var fb=null;
+      for(var i=0;i<sets.length;i++){
+        var norm=sets[i].map(parse);
+        for(var j=0;j<norm.length;j++){
+          var e=norm[j];
+          if(!wild){
+            if(!e.wild&&e.host===cur){
+              var h={norm:norm,idx:j,cap:""};
+              /* A set whose only other entries are wildcards has nothing
+                 to offer an exact match; keep looking, but remember it. */
+              for(var n=1;n<norm.length;n++){if(!norm[(j+n)%norm.length].wild)return h;}
+              if(!fb)fb=h;
+            }
+          }else if(e.wild){
+            var suf=e.host.slice(1);
+            if(cur.length>suf.length&&cur.slice(-suf.length)===suf){
+              var cap=cur.slice(0,cur.length-suf.length);
+              if(cap.indexOf(":")<0)return{norm:norm,idx:j,cap:cap};
+            }
+          }
+        }
       }
+      return fb;
     }
-    alert("URLswap: no set matches "+cur);
+    var hit=find(false)||find(true);
+    if(!hit){alert("URLswap: no set matches "+cur);return;}
+    for(var k=1;k<=hit.norm.length;k++){
+      var next=hit.norm[(hit.idx+k+skip)%hit.norm.length];
+      if(next.wild&&!hit.cap)continue;
+      var host=next.wild?hit.cap+next.host.slice(1):next.host;
+      var target=next.proto+"//"+host+a.pathname+a.search+a.hash;
+      if(target===location.href){location.reload();}else{location.href=target;}
+      return;
+    }
+    alert("URLswap: nothing usable to swap to from "+cur);
   })();`;
   return "javascript:" + encodeURIComponent(src.replace(/\s+/g, " "));
 }

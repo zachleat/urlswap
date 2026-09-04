@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URLswap</title>
+<link rel="icon" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Cg fill="none" stroke="%232563eb" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M4 11h20"/%3E%3Cpath d="M19 6l5 5-5 5"/%3E%3Cpath d="M28 21H8"/%3E%3Cpath d="M13 16l-5 5 5 5"/%3E%3C/g%3E%3C/svg%3E'>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; }
+  #sets { width: 100%; padding: .5rem; font: 14px/1.5 monospace; margin-bottom: 1.5rem;
+    field-sizing: content; min-height: 5lh; max-height: 60vh; }
+  #bookmarklet { display: inline-block; padding: .6rem 1rem; background: #2563eb; color: #fff;
+    text-decoration: none; border-radius: 6px; font-weight: 600; }
+  #code { width: 100%; font: 12px/1.4 monospace; margin-top: .5rem;
+    field-sizing: content; min-height: 2lh; max-height: 8lh; }
+  .hint { font-size: .85rem; opacity: .75; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h1>URLswap</h1>
+<p class="hint">
+  One "set" of interchangeable domains per line, comma-separated
+  (e.g. <code>localhost:8080, dev.example.com, example.com</code>).
+  Clicking the bookmarklet on a URL matching a domain in a set jumps to the next one in that set, keeping the path/query/hash.
+  Entries without a scheme default to <code>http://</code> for localhost/127.0.0.1 and <code>https://</code> for everything else; write the scheme explicitly to override.
+</p>
+
+<label for="sets" class="sr-only">Domain sets, one per line</label>
+<textarea id="sets" rows="5" spellcheck="false" placeholder="localhost:8080, dev.example.com, example.com"></textarea>
+
+<p><a id="bookmarklet" href="#">URLswap</a>
+  <span class="hint">&larr; drag this to your bookmarks bar</span></p>
+
+<p><label for="code" class="hint">Or copy manually:</label></p>
+<textarea id="code" rows="2" readonly></textarea>
+
+<script>
+const STORAGE_KEY = "urlswapSets";
+const LEGACY_KEY = "domainSwapSets";
+const setsEl = document.getElementById("sets");
+const linkEl = document.getElementById("bookmarklet");
+const codeEl = document.getElementById("code");
+
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY);
+  if (raw === null) return "";
+  try {
+    const parsed = JSON.parse(raw);
+    // Migrate the old one-input-per-set format.
+    return Array.isArray(parsed) ? parsed.join("\n") : String(parsed);
+  } catch { return raw; }
+}
+
+function save(text) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(text));
+}
+
+function buildBookmarklet(sets) {
+  const data = JSON.stringify(sets);
+  const src = `(function(){
+    var sets=${data};
+    function parse(e){
+      e=e.trim().replace(/\\/+$/,"");
+      var m=/^([a-z][a-z0-9+.-]*:)\\/\\/(.*)$/i.exec(e);
+      var host=(m?m[2]:e).toLowerCase();
+      var local=/^(localhost|127\\.0\\.0\\.1|\\[::1\\])(:|$)/.test(host)||/(^|\\.)localhost(:|$)/.test(host);
+      return {proto:m?m[1]:(local?"http:":"https:"),host:host};
+    }
+    function real(u){return /^https?:\\/\\//i.test(u||"");}
+    var url=null,skip=0;
+    if(real(location.href)&&location.host&&location.host!=="chromewebdata"){
+      url=location.href;
+    }else{
+      try{
+        var nav=performance.getEntriesByType("navigation")[0];
+        if(nav&&real(nav.name))url=nav.name;
+      }catch(e){}
+      if(!url&&real(document.referrer)){url=document.referrer;skip=1;}
+    }
+    if(!url){
+      alert("URLswap: this browser error page does not expose the URL it failed on, so there is nothing to cycle from. Press Back.");
+      return;
+    }
+    var a=document.createElement("a");a.href=url;
+    var cur=a.host.toLowerCase();
+    for(var i=0;i<sets.length;i++){
+      var norm=sets[i].map(parse);
+      var idx=-1;
+      for(var j=0;j<norm.length;j++){if(norm[j].host===cur){idx=j;break;}}
+      if(idx>-1){
+        var next=norm[(idx+1+skip)%norm.length];
+        var target=next.proto+"//"+next.host+a.pathname+a.search+a.hash;
+        if(target===location.href){location.reload();}else{location.href=target;}
+        return;
+      }
+    }
+    alert("URLswap: no set matches "+cur);
+  })();`;
+  return "javascript:" + encodeURIComponent(src.replace(/\s+/g, " "));
+}
+
+function update() {
+  const text = setsEl.value;
+  save(text);
+  const lines = text
+    .split("\n")
+    .map(line => line.split(",").map(s => s.trim()).filter(Boolean))
+    .filter(set => set.length > 0);
+  const href = buildBookmarklet(lines);
+  linkEl.href = href;
+  linkEl.textContent = "URLswap (" + lines.length + ")";
+  codeEl.value = decodeURIComponent(href);
+}
+
+setsEl.addEventListener("input", update);
+setsEl.value = load();
+update();
+</script>
+
+</body>
+</html>

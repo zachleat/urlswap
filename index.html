@@ -7,7 +7,8 @@
 <link rel="icon" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"%3E%3Cg fill="none" stroke="%232563eb" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"%3E%3Cpath d="M4 11h20"/%3E%3Cpath d="M19 6l5 5-5 5"/%3E%3Cpath d="M28 21H8"/%3E%3Cpath d="M13 16l-5 5 5 5"/%3E%3C/g%3E%3C/svg%3E'>
 <style>
   :root { color-scheme: light dark; }
-  body { font: 16px/1.5 system-ui, sans-serif; max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 0; }
+  main { max-width: 680px; margin: 2rem auto; padding: 0 1rem; }
   h1 { font-size: 1.4rem; }
   #sets { width: 100%; padding: .5rem; font: 14px/1.5 monospace; margin-bottom: 1.5rem;
     field-sizing: content; min-height: 5lh; max-height: 60vh; }
@@ -44,6 +45,8 @@
 </header>
 <!-- /zachleat demo nav -->
 
+<main id="demo">
+
 <p class="hint">
   One "set" of interchangeable domains per line, comma-separated
   (e.g. <code>localhost:8080, dev.example.com, example.com</code>).
@@ -59,6 +62,8 @@
 
 <p><label for="code" class="hint">Or copy manually:</label></p>
 <textarea id="code" rows="2" readonly></textarea>
+
+</main>
 
 <script>
 const STORAGE_KEY = "urlswapSets";

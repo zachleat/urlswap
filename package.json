@@ -3,5 +3,6 @@
   "version": "1.0.0",
   "description": "Generate a bookmarklet that cycles the current URL between origin, dev, and testing domains.",
   "author": "Zach Leatherman (https://zachleat.com)",
-  "license": "MIT"
+  "license": "MIT",
+  "is-this-still-being-maintained": true
 }

@@ -70,16 +70,23 @@
 
 <footer>
   <p class="hint">
+    URLswap <code id="version"></code> (noted in the bookmarklet code). Re-drag the link above after an update.
+  </p>
+  <p class="hint">
     Prior art at: <a href="https://github.com/jmhobbs/domain-swap"><code>jmhobbs/domain-swap</code></a>.
   </p>
 </footer>
 
 <script>
+const VERSION = "1.1.0";
 const STORAGE_KEY = "urlswapSets";
 const LEGACY_KEY = "domainSwapSets";
 const setsEl = document.getElementById("sets");
 const linkEl = document.getElementById("bookmarklet");
 const codeEl = document.getElementById("code");
+const versionEl = document.getElementById("version");
+
+versionEl.textContent = "v" + VERSION;
 
 function load() {
   const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY);
@@ -97,7 +104,7 @@ function save(text) {
 
 function buildBookmarklet(sets) {
   const data = JSON.stringify(sets);
-  const src = `(function(){
+  const src = `/*URLswap v${VERSION}*/(function(){
     var sets=${data};
     function parse(e){
       e=e.trim().replace(/\\/+$/,"");
@@ -118,7 +125,7 @@ function buildBookmarklet(sets) {
       if(!url&&real(document.referrer)){url=document.referrer;skip=1;}
     }
     if(!url){
-      alert("URLswap: this browser error page does not expose the URL it failed on, so there is nothing to cycle from. Press Back.");
+      alert("URLswap v${VERSION}: this browser error page does not expose the URL it failed on, so there is nothing to cycle from. Press Back.");
       return;
     }
     var a=document.createElement("a");a.href=url;
@@ -149,7 +156,7 @@ function buildBookmarklet(sets) {
       return fb;
     }
     var hit=find(false)||find(true);
-    if(!hit){alert("URLswap: no set matches "+cur);return;}
+    if(!hit){alert("URLswap v${VERSION}: no set matches "+cur);return;}
     for(var k=1;k<=hit.norm.length;k++){
       var next=hit.norm[(hit.idx+k+skip)%hit.norm.length];
       if(next.wild&&!hit.cap)continue;
@@ -158,7 +165,7 @@ function buildBookmarklet(sets) {
       if(target===location.href){location.reload();}else{location.href=target;}
       return;
     }
-    alert("URLswap: nothing usable to swap to from "+cur);
+    alert("URLswap v${VERSION}: nothing usable to swap to from "+cur);
   })();`;
   return "javascript:" + encodeURIComponent(src.replace(/\s+/g, " "));
 }
